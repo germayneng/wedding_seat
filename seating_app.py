@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+from hashlib import sha256
 
 # Load the CSV file
 @st.cache_data
@@ -25,6 +26,12 @@ def save_counter(count, checked_in_guests):
             'checked_in_guests': list(checked_in_guests)
         }, f)
 
+# Password verification
+def verify_password(input_password):
+    # Change this to your desired password
+    correct_password = "wedding2024"
+    return input_password == correct_password
+
 # Main function to run the Streamlit app
 def main():
     st.set_page_config(layout="centered")
@@ -34,6 +41,10 @@ def main():
         count, checked_in_guests = load_counter()
         st.session_state.check_in_count = count
         st.session_state.checked_in_guests = checked_in_guests
+
+    # Initialize password modal state
+    if 'show_password_modal' not in st.session_state:
+        st.session_state.show_password_modal = False
 
     # Center-aligned title
     st.markdown("<h1 style='text-align: center;'>Welcome to Germayne & Xiao Ting's Wedding</h1>\n enter your name to find your seating :)", unsafe_allow_html=True)
@@ -62,10 +73,10 @@ def main():
         if not filtered_df.empty:
             st.write("Matching results:")
             for idx, row in filtered_df.iterrows():
-                first_name = row['name']
+                first_name = row['combined']
                 table_number = row['table']
-                last_name = row["last_name"]
-                guest_id = f"{first_name}_{last_name}"
+                # last_name = row["last_name"]
+                guest_id = f"{first_name}"
                 is_checked_in = guest_id in st.session_state.checked_in_guests
 
                 # Create columns for each guest result
@@ -73,7 +84,7 @@ def main():
                 
                 with col1:
                     status = "✓ Checked In" if is_checked_in else "Not Checked In"
-                    st.success(f"{first_name} {last_name} | Table {table_number}\nStatus: {status}")
+                    st.success(f"{first_name} | Table {table_number}\nStatus: {status}")
                 
                 with col2:
                     if not is_checked_in:
@@ -93,18 +104,34 @@ def main():
         if st.session_state.checked_in_guests:
             st.write("### Checked-in Guests")
             for guest_id in st.session_state.checked_in_guests:
-                first_name, last_name = guest_id.split('_')
-                guest_row = df[(df['name'] == first_name) & (df['last_name'] == last_name)].iloc[0]
-                st.write(f"{first_name} {last_name} | Table {guest_row['table']}")
+                first_name = guest_id
+                guest_row = df[(df['combined'] == first_name)].iloc[0]
+                st.write(f"{first_name} | Table {guest_row['table']}")
         else:
             st.write("No guests have checked in yet.")
 
-    # Add a reset button (optional - remove if not needed)
-    # if st.button("Reset Counter"):
-    #     st.session_state.check_in_count = 0
-    #     st.session_state.checked_in_guests = set()
-    #     save_counter(0, set())
-    #     st.rerun()
+    # Add password protected reset button
+    st.divider()
+    if st.button("Reset Counter"):
+        st.session_state.show_password_modal = True
+
+    # Password modal
+    if st.session_state.show_password_modal:
+        with st.form("password_form"):
+            st.write("### Enter Password to Reset Counter")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Submit")
+            
+            if submitted:
+                if verify_password(password):
+                    st.session_state.check_in_count = 0
+                    st.session_state.checked_in_guests = set()
+                    save_counter(0, set())
+                    st.session_state.show_password_modal = False
+                    st.success("Counter reset successfully!")
+                    st.rerun()
+                else:
+                    st.error("Incorrect password!")
 
 if __name__ == "__main__":
     main()
