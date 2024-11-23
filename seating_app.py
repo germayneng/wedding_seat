@@ -1,20 +1,56 @@
 import streamlit as st
 import pandas as pd
+import json
+import os
 
 # Load the CSV file
 @st.cache_data
 def load_data():
     return pd.read_csv('seating.csv')
 
+# Load counter from JSON file
+def load_counter():
+    try:
+        with open('counter.json', 'r') as f:
+            data = json.load(f)
+            return data.get('count', 0), set(data.get('checked_in_guests', []))
+    except FileNotFoundError:
+        return 0, set()
+
+# Save counter to JSON file
+def save_counter(count, checked_in_guests):
+    with open('counter.json', 'w') as f:
+        json.dump({
+            'count': count,
+            'checked_in_guests': list(checked_in_guests)
+        }, f)
+
 # Main function to run the Streamlit app
 def main():
     st.set_page_config(layout="centered")
+
+    # Initialize counter from file if it doesn't exist in session state
+    if 'check_in_count' not in st.session_state or 'checked_in_guests' not in st.session_state:
+        count, checked_in_guests = load_counter()
+        st.session_state.check_in_count = count
+        st.session_state.checked_in_guests = checked_in_guests
 
     # Center-aligned title
     st.markdown("<h1 style='text-align: center;'>Welcome to Germayne & Xiao Ting's Wedding</h1>\n enter your name to find your seating :)", unsafe_allow_html=True)
 
     # Load data
     df = load_data()
+
+    # Display counter
+    total_guests = len(df)
+    
+    # Create two columns for the stats
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric("Guests Checked In", f"{st.session_state.check_in_count}")
+    with col2:
+        st.metric("Total Guests", f"{total_guests}")
 
     # Text input for name
     name = st.text_input("Enter your name:")
@@ -25,15 +61,50 @@ def main():
 
         if not filtered_df.empty:
             st.write("Matching results:")
-            for _, row in filtered_df.iterrows():
+            for idx, row in filtered_df.iterrows():
                 first_name = row['name']
                 table_number = row['table']
                 last_name = row["last_name"]
-                st.success(f"{first_name} {last_name} | Table {table_number}")
+                guest_id = f"{first_name}_{last_name}"
+                is_checked_in = guest_id in st.session_state.checked_in_guests
+
+                # Create columns for each guest result
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    status = "✓ Checked In" if is_checked_in else "Not Checked In"
+                    st.success(f"{first_name} {last_name} | Table {table_number}\nStatus: {status}")
+                
+                with col2:
+                    if not is_checked_in:
+                        if st.button(f"Check In", key=f"check_in_{idx}"):
+                            st.session_state.check_in_count += 1
+                            st.session_state.checked_in_guests.add(guest_id)
+                            # Save to file
+                            save_counter(st.session_state.check_in_count, st.session_state.checked_in_guests)
+                            st.rerun()
         else:
             st.warning("No matching names found. Please check your spelling or continue typing.")
     else:
         st.info("Start typing to see matching results.")
+
+    # Add a section for viewing all checked-in guests
+    if st.checkbox("Show all checked-in guests"):
+        if st.session_state.checked_in_guests:
+            st.write("### Checked-in Guests")
+            for guest_id in st.session_state.checked_in_guests:
+                first_name, last_name = guest_id.split('_')
+                guest_row = df[(df['name'] == first_name) & (df['last_name'] == last_name)].iloc[0]
+                st.write(f"{first_name} {last_name} | Table {guest_row['table']}")
+        else:
+            st.write("No guests have checked in yet.")
+
+    # Add a reset button (optional - remove if not needed)
+    # if st.button("Reset Counter"):
+    #     st.session_state.check_in_count = 0
+    #     st.session_state.checked_in_guests = set()
+    #     save_counter(0, set())
+    #     st.rerun()
 
 if __name__ == "__main__":
     main()
