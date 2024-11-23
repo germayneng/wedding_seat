@@ -47,7 +47,7 @@ def main():
         st.session_state.show_password_modal = False
 
     # Center-aligned title
-    st.markdown("<h1 style='text-align: center;'>Welcome to Germayne & Xiao Ting's Wedding</h1>\n enter your name to find your seating :)", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>Welcome to Germayne & Xiao Ting's Wedding</h1>\n <h2> Enter your name to find your seating and PRESS CHECK IN </h2> ", unsafe_allow_html=True)
 
     # Load data
     df = load_data()
@@ -84,7 +84,7 @@ def main():
                 
                 with col1:
                     status = "✓ Checked In" if is_checked_in else "Not Checked In"
-                    st.success(f"{first_name} | Table {table_number}\nStatus: {status}")
+                    st.success(f"{first_name} | Table {table_number} | Status: {status}")
                 
                 with col2:
                     if not is_checked_in:
