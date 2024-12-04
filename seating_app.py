@@ -3,11 +3,16 @@ import pandas as pd
 import json
 import os
 from hashlib import sha256
+from PIL import Image
 
 # Load the CSV file
 @st.cache_data
 def load_data():
     return pd.read_csv('seating.csv')
+
+@st.cache_data
+def load_img():
+    return Image.open('seats.png')
 
 # Load counter from JSON file
 def load_counter():
@@ -51,6 +56,9 @@ def main():
 
     # Load data
     df = load_data()
+
+    # load image
+    image = load_img()
 
     # Display counter
     total_guests = len(df)
@@ -109,6 +117,10 @@ def main():
                 st.write(f"{first_name} | Table {guest_row['table']}")
         else:
             st.write("No guests have checked in yet.")
+
+    # Display image
+    st.divider()
+    st.image(image, caption='Seating Arrangement', use_column_width=True)
 
     # Add password protected reset button
     st.divider()
